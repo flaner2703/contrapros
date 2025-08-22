@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>contrapros — Contabilidad Sencilla</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root{ --green:#16a34a; --red:#dc2626; }
+    body{ min-height:100vh; }
+    .sidebar{ width:280px; }
+    .brand-gradient{ background:linear-gradient(135deg,#111827,#1f2937,#0ea5e9); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .card-kpi{ border:0; border-radius:1rem; box-shadow:0 6px 18px rgba(0,0,0,.08); }
+    .kpi-amount{ font-variant-numeric: tabular-nums; }
+    .badge-income{ background:rgba(22,163,74,.1); color:var(--green); }
+    .badge-expense{ background:rgba(220,38,38,.1); color:var(--red); }
+    .table thead th{ position:sticky; top:0; background:var(--bs-body-bg); z-index:1; }
+    .pointer{ cursor:pointer; }
+    .section{ display:none; }
+    .section.active{ display:block; }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body">
+    <div class="container-fluid">
+      <button class="btn btn-outline-secondary d-lg-none me-2" id="btnToggleSidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+      <a class="navbar-brand fw-bold" href="#"><span class="brand-gradient">contrapros</span></a>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <div class="form-check form-switch m-0" title="Modo claro/oscuro">
+          <input class="form-check-input" type="checkbox" role="switch" id="themeSwitch">
+          <label class="form-check-label" for="themeSwitch"><i class="bi bi-moon-stars"></i></label>
+        </div>
+        <button class="btn btn-outline-primary" id="btnQuickAdd"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <aside class="col-lg-3 col-xl-2 border-end sidebar p-0" id="sidebar">
+        <div class="list-group list-group-flush py-3">
+          <a class="list-group-item list-group-item-action active" data-section="dashboard" href="#"><i class="bi bi-speedometer me-2"></i>Dashboard</a>
+          <a class="list-group-item list-group-item-action" data-section="transacciones" href="#"><i class="bi bi-cash-coin me-2"></i>Transacciones</a>
+          <a class="list-group-item list-group-item-action" data-section="reportes" href="#"><i class="bi bi-graph-up-arrow me-2"></i>Reportes</a>
+          <a class="list-group-item list-group-item-action" data-section="exportar" href="#"><i class="bi bi-filetype-pdf me-2"></i>Exportar</a>
+          <a class="list-group-item list-group-item-action" data-section="config" href="#"><i class="bi bi-gear me-2"></i>Configuración</a>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="col-lg-9 col-xl-10 p-3 p-lg-4">
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+
+        <!-- Dashboard -->
+        <section id="section-dashboard" class="section active">
+          <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div class="me-auto">
+              <h1 class="h3 mb-1">Resumen financiero</h1>
+              <p class="text-body-secondary m-0">Vista general de ingresos, gastos y tendencias.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <input type="month" class="form-control" id="dashMonth" title="Filtrar por mes">
+              <select class="form-select" id="dashType">
+                <option value="all">Todos</option>
+                <option value="income">Ingresos</option>
+                <option value="expense">Gastos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <div class="card card-kpi">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="text-body-secondary">Ingresos</div>
+                      <div class="display-6 kpi-amount" id="kpiIncome">S/ 0.00</div>
+                    </div>
+                    <i class="bi bi-arrow-down-left-circle fs-1 text-success"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="card card-kpi">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="text-body-secondary">Gastos</div>
+                      <div class="display-6 kpi-amount" id="kpiExpense">S/ 0.00</div>
+                    </div>
+                    <i class="bi bi-arrow-up-right-circle fs-1 text-danger"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="card card-kpi">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="text-body-secondary">Balance</div>
+                      <div class="display-6 kpi-amount" id="kpiBalance">S/ 0.00</div>
+                    </div>
+                    <i class="bi bi-currency-exchange fs-1"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-12 col-lg-8">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold">Ingresos vs Gastos (últimos 6 meses)</div>
+                <div class="card-body">
+                  <canvas id="barIG"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold">Distribución de gastos por categoría</div>
+                <div class="card-body">
+                  <canvas id="pieGastos"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-12 col-xl-6">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center">
+                  <span>Transacciones recientes</span>
+                  <a class="small" data-section="transacciones" href="#">Ver todas</a>
+                </div>
+                <ul class="list-group list-group-flush" id="recentList"></ul>
+              </div>
+            </div>
+            <div class="col-12 col-xl-6">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center">
+                  <span>Recordatorios próximos</span>
+                  <span class="small text-body-secondary">(vencen en 7 días)</span>
+                </div>
+                <ul class="list-group list-group-flush" id="remindersList"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Transacciones -->
+        <section id="section-transacciones" class="section">
+          <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div class="me-auto">
+              <h2 class="h4 mb-1">Gestión de transacciones</h2>
+              <p class="text-body-secondary m-0">Agrega, edita o elimina ingresos y gastos. Campos nuevos: <b>Cantidad</b> y <b>Fecha de vencimiento</b>. "Recurrente" reemplaza a "Repetir".</p>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-12 col-lg-5">
+              <div class="card card-kpi">
+                <div class="card-header bg-transparent fw-semibold">Nueva/Editar transacción</div>
+                <div class="card-body">
+                  <form id="txForm" class="needs-validation" novalidate>
+                    <input type="hidden" id="txId">
+                    <div class="row g-2">
+                      <div class="col-6">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" id="txType" required>
+                          <option value="income">Ingreso</option>
+                          <option value="expense">Gasto</option>
+                        </select>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Categoría</label>
+                        <select class="form-select" id="txCategory" required></select>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Concepto</label>
+                        <input type="text" class="form-control" id="txTitle" placeholder="Ej. Venta de productos / Alquiler" required>
+                        <div class="invalid-feedback">Ingresa un concepto.</div>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Monto unitario (S/)</label>
+                        <input type="number" min="0" step="0.01" class="form-control" id="txAmount" required>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Cantidad</label>
+                        <input type="number" min="1" step="1" class="form-control" id="txQty" value="1" required>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Total (S/)</label>
+                        <input type="text" class="form-control" id="txTotal" readonly>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Fecha</label>
+                        <input type="date" class="form-control" id="txDate" required>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Fecha de vencimiento</label>
+                        <input type="date" class="form-control" id="txDue">
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Estado</label>
+                        <select class="form-select" id="txStatus">
+                          <option value="paid">Pagado</option>
+                          <option value="pending">Pendiente</option>
+                        </select>
+                      </div>
+                      <div class="col-12">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="txRecurring">
+                          <label class="form-check-label" for="txRecurring">Recurrente <i class="bi bi-question-circle" title="Para pagos/ingresos que se repiten automáticamente (mensual, semanal o cada N días)."></i></label>
+                        </div>
+                      </div>
+                      <div id="recurringControls" class="row g-2 d-none">
+                        <div class="col-6">
+                          <label class="form-label">Frecuencia</label>
+                          <select class="form-select" id="txFrequency">
+                            <option value="monthly">Mensual</option>
+                            <option value="weekly">Semanal</option>
+                            <option value="custom">Cada N días</option>
+                          </select>
+                        </div>
+                        <div class="col-6" id="customDaysWrap" style="display:none;">
+                          <label class="form-label">Cada (días)</label>
+                          <input type="number" min="1" step="1" class="form-control" id="txEveryDays" value="30">
+                        </div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Notas</label>
+                        <textarea class="form-control" id="txNotes" rows="2" placeholder="Texto libre"></textarea>
+                      </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                      <button class="btn btn-primary" type="submit"><i class="bi bi-save2 me-1"></i>Guardar</button>
+                      <button class="btn btn-outline-secondary" type="reset" id="btnClear"><i class="bi bi-eraser me-1"></i>Limpiar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-7">
+              <div class="card card-kpi">
+                <div class="card-header bg-transparent fw-semibold d-flex flex-wrap gap-2 align-items-center">
+                  <span>Listado</span>
+                  <div class="ms-auto d-flex flex-wrap gap-2">
+                    <input type="date" class="form-control" id="fltFrom" title="Desde">
+                    <input type="date" class="form-control" id="fltTo" title="Hasta">
+                    <select class="form-select" id="fltType">
+                      <option value="all">Tipo: todos</option>
+                      <option value="income">Solo ingresos</option>
+                      <option value="expense">Solo gastos</option>
+                    </select>
+                    <select class="form-select" id="fltCategory">
+                      <option value="all">Categoría: todas</option>
+                    </select>
+                    <button class="btn btn-outline-secondary" id="btnClearFilters"><i class="bi bi-sliders"></i></button>
+                  </div>
+                </div>
+                <div class="table-responsive" style="max-height:480px;">
+                  <table class="table table-hover align-middle mb-0" id="txTable">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Concepto</th>
+                        <th>Categoría</th>
+                        <th class="text-end">Cant.</th>
+                        <th class="text-end">Monto</th>
+                        <th class="text-end">Total</th>
+                        <th>Vence</th>
+                        <th>Estado</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Reportes -->
+        <section id="section-reportes" class="section">
+          <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div class="me-auto">
+              <h2 class="h4 mb-1">Reportes y tendencias</h2>
+              <p class="text-body-secondary m-0">Analiza tu flujo por período y categoría.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <input type="month" class="form-control" id="repMonth">
+              <select class="form-select" id="repSpan">
+                <option value="6">Últimos 6 meses</option>
+                <option value="12">Últimos 12 meses</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-xl-8">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold">Ingresos vs Gastos</div>
+                <div class="card-body"><canvas id="barIG2"></canvas></div>
+              </div>
+            </div>
+            <div class="col-12 col-xl-4">
+              <div class="card card-kpi h-100">
+                <div class="card-header bg-transparent fw-semibold">Gastos x categoría</div>
+                <div class="card-body"><canvas id="pieGastos2"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Exportar -->
+        <section id="section-exportar" class="section">
+          <h2 class="h4 mb-3">Exportar reportes</h2>
+          <div class="card card-kpi mb-3">
+            <div class="card-header bg-transparent fw-semibold">Filtros de exportación</div>
+            <div class="card-body row g-2">
+              <div class="col-12 col-md-3"><input type="date" id="exFrom" class="form-control" placeholder="Desde"></div>
+              <div class="col-12 col-md-3"><input type="date" id="exTo" class="form-control" placeholder="Hasta"></div>
+              <div class="col-12 col-md-3">
+                <select id="exType" class="form-select">
+                  <option value="all">Todos</option>
+                  <option value="income">Ingresos</option>
+                  <option value="expense">Gastos</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-3">
+                <select id="exCategory" class="form-select">
+                  <option value="all">Todas las categorías</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="exPendingOnly">
+                  <label class="form-check-label" for="exPendingOnly">Solo pendientes</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-danger" id="btnPDF"><i class="bi bi-filetype-pdf me-1"></i>Exportar PDF</button>
+            <button class="btn btn-success" id="btnXLSX"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel</button>
+          </div>
+        </section>
+
+        <!-- Configuración -->
+        <section id="section-config" class="section">
+          <h2 class="h4 mb-3">Configuración</h2>
+          <div class="card card-kpi mb-3">
+            <div class="card-header bg-transparent fw-semibold">Preferencias</div>
+            <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="cfgDark">
+                <label class="form-check-label" for="cfgDark">Modo oscuro</label>
+              </div>
+              <button class="btn btn-outline-warning" id="btnSeed"><i class="bi bi-bezier2 me-1"></i>Cargar datos de ejemplo</button>
+              <button class="btn btn-outline-danger" id="btnReset"><i class="bi bi-trash3 me-1"></i>Vaciar todo</button>
+            </div>
+          </div>
+
+          <div class="card card-kpi">
+            <div class="card-header bg-transparent fw-semibold">Respaldo local</div>
+            <div class="card-body d-flex flex-wrap gap-2">
+              <button class="btn btn-outline-primary" id="btnBackup"><i class="bi bi-download me-1"></i>Descargar respaldo (JSON)</button>
+              <label class="btn btn-outline-secondary m-0" for="inputRestore"><i class="bi bi-upload me-1"></i>Restaurar respaldo</label>
+              <input type="file" id="inputRestore" accept="application/json" class="d-none" />
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.1/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+  // ===================== UTILIDADES =====================
+  const LS_KEY = 'contrapros_data_v1';
+  const PEN = (v)=> `S/ ${Number(v||0).toFixed(2)}`;
+  const todayStr = ()=> new Date().toISOString().slice(0,10);
+  const parseDate = (s)=> s? new Date(s) : null;
+  const between = (d, from, to)=>{
+    if(!d) return true; const t = new Date(d).setHours(0,0,0,0);
+    if(from){ const f = new Date(from).setHours(0,0,0,0); if(t < f) return false; }
+    if(to){ const tt = new Date(to).setHours(0,0,0,0); if(t > tt) return false; }
+    return true;
+  };
+  const uid = ()=> Math.random().toString(36).slice(2)+Date.now().toString(36);
+
+  const DEFAULT_CATS = [
+    {id:'ventas', label:'Ventas', type:'income'},
+    {id:'servicios', label:'Servicios', type:'income'},
+    {id:'salario', label:'Salario', type:'income'},
+    {id:'alquiler', label:'Alquiler', type:'expense'},
+    {id:'comida', label:'Comida', type:'expense'},
+    {id:'transporte', label:'Transporte', type:'expense'},
+    {id:'insumos', label:'Insumos', type:'expense'},
+    {id:'otros', label:'Otros', type:'expense'}
+  ];
+
+  // ===================== ESTADO =====================
+  let DB = JSON.parse(localStorage.getItem(LS_KEY) || 'null') || { transactions: [], categories: DEFAULT_CATS, prefs: { theme: 'light' } };
+  // Migración simple de categorías si faltan
+  if(!DB.categories || !Array.isArray(DB.categories)) DB.categories = DEFAULT_CATS;
+
+  // ===================== DOM REFS =====================
+  const sections = {
+    dashboard: document.getElementById('section-dashboard'),
+    transacciones: document.getElementById('section-transacciones'),
+    reportes: document.getElementById('section-reportes'),
+    exportar: document.getElementById('section-exportar'),
+    config: document.getElementById('section-config')
+  };
+  const alertContainer = document.getElementById('alertContainer');
+
+  // Sidebar navigation
+  document.querySelectorAll('[data-section]').forEach(link=>{
+    link.addEventListener('click', (e)=>{
+      e.preventDefault();
+      document.querySelectorAll('.list-group-item').forEach(a=>a.classList.remove('active'));
+      link.classList.add('active');
+      const id = link.getAttribute('data-section');
+      Object.values(sections).forEach(s=>s.classList.remove('active'));
+      sections[id].classList.add('active');
+      if(window.innerWidth < 992) document.getElementById('sidebar').classList.add('d-none');
+      if(id==='reportes') drawReports();
+    });
+  });
+  document.getElementById('btnToggleSidebar').onclick=()=>document.getElementById('sidebar').classList.toggle('d-none');
+
+  // Theme
+  const htmlEl = document.documentElement;
+  const themeSwitch = document.getElementById('themeSwitch');
+  const cfgDark = document.getElementById('cfgDark');
+  const setTheme = (mode)=>{ htmlEl.setAttribute('data-bs-theme', mode); themeSwitch.checked = (mode==='dark'); cfgDark.checked = (mode==='dark'); DB.prefs.theme = mode; persist(); };
+  // Inicializar tema
+  setTheme(DB.prefs?.theme || 'light');
+  themeSwitch.onchange = ()=> setTheme(themeSwitch.checked?'dark':'light');
+  cfgDark.onchange = ()=> setTheme(cfgDark.checked?'dark':'light');
+
+  // ===================== FORMULARIO =====================
+  const txForm = document.getElementById('txForm');
+  const txId = document.getElementById('txId');
+  const txType = document.getElementById('txType');
+  const txCategory = document.getElementById('txCategory');
+  const txTitle = document.getElementById('txTitle');
+  const txAmount = document.getElementById('txAmount');
+  const txQty = document.getElementById('txQty');
+  const txTotal = document.getElementById('txTotal');
+  const txDate = document.getElementById('txDate');
+  const txDue = document.getElementById('txDue');
+  const txStatus = document.getElementById('txStatus');
+  const txRecurring = document.getElementById('txRecurring');
+  const recurringControls = document.getElementById('recurringControls');
+  const txFrequency = document.getElementById('txFrequency');
+  const txEveryDays = document.getElementById('txEveryDays');
+  const customDaysWrap = document.getElementById('customDaysWrap');
+
+  document.getElementById('btnQuickAdd').onclick=()=>{
+    document.querySelector('[data-section="transacciones"]').click();
+    txTitle.focus();
+  };
+
+  // Poblar categorías
+  function refreshCategories(){
+    txCategory.innerHTML = '';
+    const type = txType.value;
+    DB.categories.filter(c=>c.type===type).forEach(c=>{
+      const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.label; txCategory.appendChild(opt);
+    });
+    // Filtros de listado/export
+    const catSelects = [document.getElementById('fltCategory'), document.getElementById('exCategory')];
+    catSelects.forEach(sel=>{
+      const prev = sel.value;
+      sel.innerHTML = '<option value="all">Categoría: todas</option>';
+      DB.categories.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.label; sel.appendChild(o); });
+      sel.value = prev || 'all';
+    });
+  }
+  refreshCategories();
+
+  // Sincronizar tipo->categorías
+  txType.onchange = refreshCategories;
+
+  // Total = monto*qty
+  function updateTotal(){
+    const total = (parseFloat(txAmount.value||0) * parseInt(txQty.value||1));
+    txTotal.value = Number(total||0).toFixed(2);
+  }
+  txAmount.oninput = updateTotal; txQty.oninput = updateTotal; updateTotal();
+
+  // Recurrencia UI
+  txRecurring.onchange = ()=>{
+    recurringControls.classList.toggle('d-none', !txRecurring.checked);
+  };
+  txFrequency.onchange = ()=>{
+    customDaysWrap.style.display = (txFrequency.value==='custom')? 'block':'none';
+  };
+
+  // Fecha por defecto
+  txDate.value = todayStr();
+
+  // Guardar transacción
+  txForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    if(!txForm.checkValidity()){ txForm.classList.add('was-validated'); return; }
+    const data = {
+      id: txId.value || uid(),
+      type: txType.value,
+      category: txCategory.value,
+      title: txTitle.value.trim(),
+      amount: Number(txAmount.value),
+      qty: parseInt(txQty.value||1),
+      total: Number((txAmount.value||0) * (txQty.value||1)),
+      date: txDate.value,
+      due: txDue.value || null,
+      status: txStatus.value,
+      recurring: txRecurring.checked ? {
+        active: true,
+        frequency: txFrequency.value,
+        everyDays: txFrequency.value==='custom'? parseInt(txEveryDays.value||30) : null,
+        nextDate: calcNextDate(txDate.value, txFrequency.value, txEveryDays.value)
+      } : {active:false},
+      notes: document.getElementById('txNotes').value.trim()
+    };
+    const idx = DB.transactions.findIndex(t=>t.id===data.id);
+    if(idx>=0) DB.transactions[idx]=data; else DB.transactions.unshift(data);
+    persist();
+    txForm.reset(); txForm.classList.remove('was-validated'); txId.value=''; updateTotal(); txDate.value = todayStr();
+    renderAll();
+  });
+  document.getElementById('btnClear').onclick=()=>{ txId.value=''; txForm.classList.remove('was-validated'); updateTotal(); txDate.value = todayStr(); };
+
+  function calcNextDate(base, freq, every){
+    const d = new Date(base||todayStr());
+    if(freq==='monthly'){ d.setMonth(d.getMonth()+1); }
+    else if(freq==='weekly'){ d.setDate(d.getDate()+7); }
+    else if(freq==='custom'){ d.setDate(d.getDate()+parseInt(every||30)); }
+    return d.toISOString().slice(0,10);
+  }
+
+  // ===================== LISTADO & FILTROS =====================
+  const txTableBody = document.querySelector('#txTable tbody');
+  const fltFrom = document.getElementById('fltFrom');
+  const fltTo = document.getElementById('fltTo');
+  const fltType = document.getElementById('fltType');
+  const fltCategory = document.getElementById('fltCategory');
+  document.getElementById('btnClearFilters').onclick = ()=>{ fltFrom.value=''; fltTo.value=''; fltType.value='all'; fltCategory.value='all'; renderTable(); };
+
+  [fltFrom,fltTo,fltType,fltCategory].forEach(el=> el.addEventListener('change', renderTable));
+
+  function applyFilters(list, ext){
+    const from = (ext && ext.from!==undefined)? ext.from : fltFrom.value;
+    const to = (ext && ext.to!==undefined)? ext.to : fltTo.value;
+    const fType = (ext && ext.type)? ext.type : fltType.value;
+    const fCat = (ext && ext.category)? ext.category : fltCategory.value;
+    const pendingOnly = ext?.pendingOnly;
+    return list.filter(t=> between(t.date, from, to) && (fType==='all'||t.type===fType) && (fCat==='all'||t.category===fCat) && (!pendingOnly || t.status==='pending'));
+  }
+
+  function renderTable(){
+    const rows = applyFilters(DB.transactions).map(t=>{
+      const cat = DB.categories.find(c=>c.id===t.category)?.label || t.category;
+      const badge = t.type==='income'? 'badge-income':'badge-expense';
+      const dueSoon = t.due && new Date(t.due) - new Date() <= 7*24*3600*1000 && t.status==='pending';
+      return `<tr>
+        <td>${t.date||''}</td>
+        <td><span class="badge ${badge}">${t.type==='income'?'Ingreso':'Gasto'}</span></td>
+        <td>${escapeHtml(t.title)}</td>
+        <td>${escapeHtml(cat)}</td>
+        <td class="text-end">${t.qty}</td>
+        <td class="text-end">${PEN(t.amount)}</td>
+        <td class="text-end fw-semibold">${PEN(t.total)}</td>
+        <td>${t.due? `${t.due}${dueSoon? ' <span class="badge text-bg-warning">Pronto</span>':''}`:''}</td>
+        <td>${t.status==='paid'? '<span class="badge text-bg-success">Pagado</span>':'<span class="badge text-bg-secondary">Pendiente</span>'}</td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="editTx('${t.id}')" title="Editar"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="delTx('${t.id}')" title="Eliminar"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+    txTableBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-body-secondary py-4">Sin transacciones aún</td></tr>`;
+  }
+
+  window.editTx = (id)=>{
+    const t = DB.transactions.find(x=>x.id===id); if(!t) return;
+    txId.value = t.id; txType.value = t.type; refreshCategories(); txCategory.value = t.category;
+    txTitle.value = t.title; txAmount.value = t.amount; txQty.value = t.qty; updateTotal();
+    txDate.value = t.date || todayStr(); txDue.value = t.due || '';
+    txStatus.value = t.status || 'paid';
+    txRecurring.checked = !!t.recurring?.active; recurringControls.classList.toggle('d-none', !txRecurring.checked);
+    if(t.recurring?.active){ txFrequency.value = t.recurring.frequency; customDaysWrap.style.display = (txFrequency.value==='custom')? 'block':'none'; if(t.recurring.frequency==='custom') txEveryDays.value = t.recurring.everyDays || 30; }
+    document.querySelector('[data-section="transacciones"]').click();
+  };
+  window.delTx = (id)=>{
+    if(!confirm('¿Eliminar esta transacción?')) return;
+    DB.transactions = DB.transactions.filter(t=>t.id!==id); persist(); renderAll();
+  };
+
+  // ===================== DASHBOARD =====================
+  const kpiIncome = document.getElementById('kpiIncome');
+  const kpiExpense = document.getElementById('kpiExpense');
+  const kpiBalance = document.getElementById('kpiBalance');
+  const recentList = document.getElementById('recentList');
+  const remindersList = document.getElementById('remindersList');
+  const dashMonth = document.getElementById('dashMonth');
+  const dashType = document.getElementById('dashType');
+
+  [dashMonth,dashType].forEach(el=>el.addEventListener('change', renderDashboard));
+
+  let bar1, pie1, bar2, pie2;
+
+  function renderDashboard(){
+    const month = dashMonth.value; // yyyy-mm
+    let list = DB.transactions.slice();
+    if(month){ list = list.filter(t=> (t.date||'').slice(0,7)===month); }
+    if(dashType.value!=='all'){ list = list.filter(t=> t.type===dashType.value); }
+
+    const income = list.filter(t=>t.type==='income').reduce((a,b)=>a+b.total,0);
+    const expense = list.filter(t=>t.type==='expense').reduce((a,b)=>a+b.total,0);
+
+    kpiIncome.textContent = PEN(income);
+    kpiExpense.textContent = PEN(expense);
+    kpiBalance.textContent = PEN(income-expense);
+
+    // Alerta balance negativo
+    alertContainer.innerHTML = '';
+    if((income-expense) < 0){
+      const el = document.createElement('div');
+      el.className = 'alert alert-danger d-flex align-items-center';
+      el.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Tu balance es negativo en <b>${PEN((income-expense)*-1)}</b>. Revisa tus gastos.`;
+      alertContainer.appendChild(el);
+    }
+
+    // Charts
+    drawBarChart('barIG', (bar1), monthsSeries(6));
+    drawPieGastos('pieGastos');
+
+    // Recientes
+    const recent = DB.transactions.slice(0,8);
+    recentList.innerHTML = recent.map(t=>{
+      const badge = t.type==='income'? 'text-success':'text-danger';
+      const cat = DB.categories.find(c=>c.id===t.category)?.label || t.category;
+      return `<li class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="small">
+          <div class="fw-semibold">${escapeHtml(t.title)}</div>
+          <div class="text-body-secondary">${t.date||''} · ${escapeHtml(cat)}</div>
+        </div>
+        <div class="fw-semibold ${badge}">${t.type==='income'?'+':'-'}${PEN(t.total)}</div>
+      </li>`;
+    }).join('') || '<li class="list-group-item text-body-secondary">Sin datos</li>';
+
+    // Recordatorios próximos (7 días)
+    const upcoming = DB.transactions.filter(t=> t.due && t.status==='pending' && (new Date(t.due)-new Date()) <= 7*24*3600*1000 && (new Date(t.due)-new Date()) >= 0)
+      .sort((a,b)=> new Date(a.due)-new Date(b.due));
+    remindersList.innerHTML = upcoming.map(t=>{
+      const days = Math.ceil((new Date(t.due)-new Date())/(24*3600*1000));
+      return `<li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">${escapeHtml(t.title)}</div>
+          <div class="text-body-secondary small">Vence: ${t.due} · en ${days} día(s)</div>
+        </div>
+        <span class="badge text-bg-warning">Pendiente</span>
+      </li>`;
+    }).join('') || '<li class="list-group-item text-body-secondary">Nada por vencer en 7 días</li>';
+  }
+
+  // ===================== CHARTS =====================
+  function monthsSeries(n){
+    const labels = []; const now = new Date();
+    for(let i=n-1;i>=0;i--){ const d = new Date(now.getFullYear(), now.getMonth()-i, 1); labels.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); }
+    const income = labels.map(m=> DB.transactions.filter(t=>t.type==='income' && (t.date||'').slice(0,7)===m).reduce((a,b)=>a+b.total,0));
+    const expense = labels.map(m=> DB.transactions.filter(t=>t.type==='expense' && (t.date||'').slice(0,7)===m).reduce((a,b)=>a+b.total,0));
+    return { labels, income, expense };
+  }
+
+  function drawBarChart(canvasId, chartRef, series){
+    const ctx = document.getElementById(canvasId);
+    if(window[canvasId+"Obj"]) window[canvasId+"Obj"].destroy();
+    window[canvasId+"Obj"] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: series.labels, datasets: [
+        { label: 'Ingresos', data: series.income },
+        { label: 'Gastos', data: series.expense }
+      ]},
+      options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+
+  function drawPieGastos(canvasId){
+    const ctx = document.getElementById(canvasId);
+    if(window[canvasId+"Obj"]) window[canvasId+"Obj"].destroy();
+    const cats = DB.categories.filter(c=>c.type==='expense');
+    const data = cats.map(c=> DB.transactions.filter(t=> t.type==='expense' && t.category===c.id).reduce((a,b)=>a+b.total,0));
+    window[canvasId+"Obj"] = new Chart(ctx, { type:'pie', data:{ labels: cats.map(c=>c.label), datasets:[{ data }] }, options:{ responsive:true, maintainAspectRatio:false }});
+  }
+
+  function drawReports(){
+    drawBarChart('barIG2', (bar2), monthsSeries(parseInt(document.getElementById('repSpan').value||6)));
+    drawPieGastos('pieGastos2');
+  }
+  document.getElementById('repSpan').addEventListener('change', drawReports);
+
+  // ===================== EXPORTAR =====================
+  document.getElementById('btnPDF').onclick = ()=>{
+    const rows = exportRows();
+    const { jsPDF } = window.jspdf; const doc = new jsPDF();
+    doc.setFontSize(16); doc.text('Reporte contrapros', 14, 18);
+    doc.setFontSize(10); doc.text(new Date().toLocaleString(), 14, 24);
+    const headers = [['Fecha','Tipo','Concepto','Categoría','Cant.','Monto','Total','Vence','Estado']];
+    const body = rows.map(t=> [t.date, t.type==='income'?'Ingreso':'Gasto', t.title, catLabel(t.category), String(t.qty), PEN(t.amount), PEN(t.total), (t.due||''), t.status==='paid'?'Pagado':'Pendiente']);
+    if(doc.autoTable){
+      doc.autoTable({ head: headers, body, startY: 28, styles:{ fontSize:9 }, headStyles:{ fillColor:[33,150,243] } });
+    }
+    doc.save(`contrapros_${todayStr()}.pdf`);
+  };
+
+  document.getElementById('btnXLSX').onclick = ()=>{
+    const rows = exportRows();
+    const data = rows.map(t=> ({
+      Fecha: t.date,
+      Tipo: t.type==='income'?'Ingreso':'Gasto',
+      Concepto: t.title,
+      Categoría: catLabel(t.category),
+      Cantidad: t.qty,
+      Monto: t.amount,
+      Total: t.total,
+      Vence: t.due||'',
+      Estado: t.status==='paid'?'Pagado':'Pendiente',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    XLSX.writeFile(wb, `contrapros_${todayStr()}.xlsx`);
+  };
+
+  function exportRows(){
+    const rows = applyFilters(DB.transactions, {
+      from: document.getElementById('exFrom').value,
+      to: document.getElementById('exTo').value,
+      type: document.getElementById('exType').value,
+      category: document.getElementById('exCategory').value,
+      pendingOnly: document.getElementById('exPendingOnly').checked
+    });
+    return rows;
+  }
+
+  const exCat = document.getElementById('exCategory');
+  // llenar export categories cuando cambien
+  function refreshExportCats(){
+    const prev = exCat.value; exCat.innerHTML = '<option value="all">Todas las categorías</option>';
+    DB.categories.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.label; exCat.appendChild(o); });
+    exCat.value = prev || 'all';
+  }
+
+  // ===================== BACKUP =====================
+  document.getElementById('btnBackup').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `contrapros_backup_${todayStr()}.json`; a.click();
+  };
+  document.getElementById('inputRestore').addEventListener('change', (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{ try{ DB = JSON.parse(reader.result); persist(); renderAll(); alert('Respaldo restaurado.'); } catch(err){ alert('Archivo inválido.'); } };
+    reader.readAsText(file);
+  });
+
+  // ===================== SEED/RESET =====================
+  document.getElementById('btnSeed').onclick = ()=>{
+    const sample = [
+      {id:uid(), type:'income', category:'ventas', title:'Venta de polos', amount:40, qty:10, total:400, date:todayStr(), due:null, status:'paid', recurring:{active:false}, notes:''},
+      {id:uid(), type:'expense', category:'alquiler', title:'Alquiler local', amount:1200, qty:1, total:1200, date:todayStr(), due:addDays(todayStr(),5), status:'pending', recurring:{active:true, frequency:'monthly', nextDate:calcNextDate(todayStr(),'monthly')}, notes:''},
+      {id:uid(), type:'expense', category:'insumos', title:'Tela para polos', amount:18.5, qty:30, total:555, date:todayStr(), due:null, status:'paid', recurring:{active:false}, notes:''},
+      {id:uid(), type:'income', category:'servicios', title:'Diseño gráfico', amount:250, qty:2, total:500, date:todayStr(), due:null, status:'paid', recurring:{active:false}, notes:''}
+    ];
+    DB.transactions = sample.concat(DB.transactions);
+    persist(); renderAll();
+  };
+  function addDays(d, n){ const dt = new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+  document.getElementById('btnReset').onclick = ()=>{ if(confirm('Esto borrará todos tus datos. ¿Continuar?')){ DB = { transactions:[], categories:DEFAULT_CATS, prefs:{ theme: DB.prefs.theme || 'light' } }; persist(); renderAll(); }};
+
+  // ===================== PERSISTENCIA =====================
+  function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+
+  // ===================== HELPERS =====================
+  function catLabel(id){ return DB.categories.find(c=>c.id===id)?.label || id; }
+  function escapeHtml(s=''){ return s.replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
+
+  // ===================== INICIO =====================
+  function renderAll(){
+    refreshCategories(); refreshExportCats(); renderTable(); renderDashboard(); drawReports();
+  }
+  renderAll();
+
+  // ===================== EXTRAS: generar siguientes vencimientos para recurrentes =====================
+  // (simplemente muestra recordatorio si nextDate cae en 7 días)
+  function updateRecurrenceReminders(){
+    const now = new Date();
+    DB.transactions.forEach(t=>{
+      if(t.recurring?.active && t.recurring.nextDate){
+        const nd = new Date(t.recurring.nextDate);
+        // si ya pasó, programa siguiente
+        if(nd < now){
+          const next = calcNextDate(t.recurring.nextDate, t.recurring.frequency, t.recurring.everyDays);
+          t.recurring.nextDate = next; persist();
+        }
+      }
+    });
+  }
+  setInterval(()=>{ updateRecurrenceReminders(); renderDashboard(); }, 60000);
+
+  </script>
+</body>
+</html>
